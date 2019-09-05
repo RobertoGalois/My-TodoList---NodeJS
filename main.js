@@ -1,27 +1,47 @@
+//shared todo list
 const express = require('express');
-const session = require('express-session');
+const socketIO = require('socket.io');
+const entities = new (require('html-entities').AllHtmlEntities)();
 const bodyParser = require('body-parser');
-const entities = require('html-entities').XmlEntities; 
+const sharedSession = require('express-socket.io-session');
+const session = require('express-session');
 const fs = require('fs');
 
 const app = express();
+const server = app.listen(8080);
+const io = socketIO.listen(server);
+
+var gl_todoList = [];
+
+/*
+** to access to req.session throught socket
+*/
+const sessionMiddleware = session({
+	secret: 'bretelle d\'emmerdes',
+	resave: true,
+	saveUninitialized: true,
+	cookie: {
+		path: '/',
+		httpOnly: 'true',
+		saveUninitialized: true,
+		sameSite: true,
+		secure: false,			//because I use http #noob
+		maxAge: 15552000000		//6 months
+	}
+});
 
 /**********/
 /** USES **/
 /**********/
 app.set('trust proxy', 1);
-app.use(session({
-	secret: 'bordel de merde',
-	resave: false,
-	saveUninitialized: true,
-	cookie: { 
-		path: '/',
-		httpOnly: 'true',
-		saveUninitialized: true,
-		sameSite: true,
-		secure: false,
-		maxAge: 15552000000		//6 months
-	}
+app.set('view engine', 'ejs');
+app.use(express.static('public'));
+app.use(sessionMiddleware);
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+io.use(sharedSession(sessionMiddleware, {
+	autoSave: true
 }));
 
 app.use(bodyParser.json());
@@ -98,11 +118,6 @@ app.get('/', (req, res) => {
 .use((req, res) => {
 	res.status(301).redirect('/');
 })
-
-/***************/
-/**** FINAL ****/
-/***************/
-app.listen(8080);
 
 
 /*******************/
