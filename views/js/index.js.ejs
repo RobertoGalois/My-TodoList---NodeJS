@@ -63,14 +63,14 @@ function getTodoListFromServerNDo(pFunction) {
 ** take a $('<li>') JQuery Element and append() it a formatted todo
 */
 function loadTodoInLi(pLiEl, pTodo) {
-	indx = parseInt(pLiEl.attr('id').slice(5));
-	pLiEl.append($('<img src="/imgs/list.png" /><span id="span_' + indx + '">' + pTodo + '</span><button class="mod_button" id="mod_' + indx + '" title="Modifier">M</button><button class="del_button" id="del_' + indx + '" title="Supprimer">X</button>'));
+	//indx = parseInt(pLiEl.attr('id').slice(5));
+	pLiEl.append($('<img src="/imgs/list.png" /><span id="span_' + pTodo.id + '">' + pTodo.todoString + '</span><button class="mod_button" id="mod_' + pTodo.id + '" title="Modifier">M</button><button class="del_button" id="del_' + pTodo.id + '" title="Supprimer">X</button>'));
 }
 
 function loadTodoListInDOM(pTodoList) {
 	for (let i = 0; i < pTodoList.length; i++) {
-		$("ul#todo_list").append('<li class="todo" id="todo_' + i + '"></li>');
-		loadTodoInLi($('li#todo_' + i), pTodoList[i]);
+		$("ul#todo_list").append('<li class="todo" id="todo_' + pTodoList[i].id + '"></li>');
+		loadTodoInLi($('li#todo_' + pTodoList[i].id), pTodoList[i]);
 	}
 
 	setEventsButtons();
@@ -186,6 +186,11 @@ function setEventsButtons() {
 $(function () {
 	getTodoListFromServerNDo(loadTodoListInDOM);
 	selectAddEntryInput();
+
+	$('button#disconnect').click(function () {
+		window.location.href="/disconnect";
+	});
+
 
 	/*
 	** Manage the validation form

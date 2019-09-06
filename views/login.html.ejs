@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="utf-8" />
+  <title>Shared Todo-List</title>
+  <style>
+  <% include ./css/login.css.ejs %>
+</style>
+ </head>
+ <body>
+  <form id="login" method="post" action="/login">
+   <h1>Identifiez-vous:</h1>
+   <input type="text" name="pseudo" id="pseudo" placeholder="Entrez votre pseudo (20 caractères maximum)" maxlength="20"/>
+   <input type="submit" value="Valider" />
+  </form>
+  <script src="./jq.js"></script>
+  <script>
+  <% include ./js/login.js.ejs %>
+  </script>
+ </body>
+</html>

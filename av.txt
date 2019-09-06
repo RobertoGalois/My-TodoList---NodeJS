@@ -1,3 +1,33 @@
-- reverifier les routes pour que tout soit secure
-- remettre des puces
-- rendre le code beaucoup plus propre
+- en gros on se logge en entrant un pseudo
+- puis ca charge la todoList depuis le server dans le DOM
+- puis on peut modifer ou supprimer ou ajouter des taches
+- quand on modifie ou supprime ou ajoute des taches, ca broadcast le tout
+  . ajout:
+    - push dans l'array gl_todoList du serveur
+	- broadcast de l'event ssAddedTodo
+	- le client prepend la todo
+
+  . delete
+  	- suppression de la todo dans l'array gl_todoList du serveur
+	- broadcast de l'event ssDeletedTodo
+	- le client remove() la todo qui correspond à l'id
+
+  . modification
+  	- modification de la todo dans l'array gl_todoList du server
+	- broadcast de l'event ssModifiedTodo
+	- le client update le contenu de la todo qui correspond a l'id
+
+du coup, gl_todoList du server devrait avoir cette structure la
+gl_todoList = [
+	{
+		id: 42,
+		todoString: 'faire a manger',
+		createdBy: 'Louis',
+		creationDate: 123456, //timestamp
+		lastUpdated: 12345,	//timestamp
+		lastUpdater: 'Vico'
+	},
+];
+
+
+==> en cours, je dois encore modifier le index.js.ejs pour qu'il gere la todo_list non pas comme un array qui contient des strings mais comme un array qui contient des objets todo
