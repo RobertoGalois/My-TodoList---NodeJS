@@ -179,10 +179,25 @@ app.get('/', (req, res) => {
 /***************************/
 
 io.sockets.on('connection', function (socket) {
-	socket.emit('ssAreUConnected', { message: 'pouet'});
+	socket.on('csSendMeTodoList', function (datas) {
+		socket.emit('ssHereIsTodoList', { todoList: gl_todoList });
+	});
 
-	socket.on('csYesIAm', function (datas) {
-		console.log('He seems connected, I had this: ' + datas.message);
+	socket.on('csIWantToAddThisTodo', function (data) {
+		if (data !== null && checkInputTodo(data.todoInput)) {
+
+			gl_todoList.unshift({
+				id: gl_newTodoId,
+				todoString: secureString(data.todoInput.trim().substring(0,80)),
+				createdBy: secureString(socket.handshake.session.userName),
+				creationDate: Date.now(),
+				lastUpdater: null,
+				lastUpdated: null,
+			});
+
+			gl_newTodoId++;
+			socket.emit('ssNewAddedTodo', { newTodo: gl_todoList[0]});
+		}
 	});
 });
 

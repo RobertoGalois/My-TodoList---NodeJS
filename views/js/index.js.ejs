@@ -173,11 +173,7 @@ function setEventsModButtons() {
 				$.post('/modTodo/', { todoValue: $('li#todo_' + id + ' input[type=text]').val(), todoId: id });
 				getTodoListFromServerNDo(reLoadTodoListInDOM);
 			})
-
-		socket.on('ssAreUConnected', function (datas) {
-			console.log('I had this: ' + datas.message);
-			socket.emit('csYesIAm', { message: 'prout' });
-		}
+		});	
 	});
 }
 
@@ -203,9 +199,21 @@ $(function () {
 	*/
 	$('form').on('submit', function (e) {
 		e.preventDefault();
-		$.post('/addTodo', { todo_input : $('input#add_entry_input').val() });
+		socket.emit('csIWantToAddThisTodo', { todoInput: $('input#add_entry_input').val() });
 		$('input#add_entry_input').val('');
-		getTodoListFromServerNDo(reLoadTodoListInDOM);
+		//getTodoListFromServerNDo(reLoadTodoListInDOM);
 		selectAddEntryInput();
 	});
-})
+
+	socket.on('ssNewAddedTodo', function (data) {
+		$("ul#todo_list").prepend('<li class="todo" id="todo_' + data.newTodo.id + '"></li>');
+		loadTodoInLi($('li#todo_' + data.newTodo.id), data.newTodo);
+		setEventsDelButtons();
+		setEventsModsButtons();
+	});
+
+	socket.emit('csSendMeTodoList');
+	socket.on('ssHereIsTodoList', function (data) {
+		console.log(data.todoList);
+	});
+});
