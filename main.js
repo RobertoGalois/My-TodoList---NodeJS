@@ -98,31 +98,14 @@ app.get('/', (req, res) => {
 /* /getTodoList  */
 /*****************/
 .post('/getTodoList', (req, res) => {
-	/*
-	checkSessionTodo(req);
-	res.status(200).setHeader('Content-Type', 'application/json; charset=utf-8');
-	//res.send(JSON.stringify({ todoList : req.session.todoList }));
-	res.send(JSON.stringify({ todoList : gl_todoList }));
-	*/
 	checkSession(req);
 	res.status(200).setHeader('Content-Type', 'application/json; charset=utf-8');
-	res.send(JSON.stringify({ todoList : gl_todoList }));
-	
+	res.send(JSON.stringify({ todoList : gl_todoList }));	
 })
 /*************/
 /* /addTodo  */
 /*************/
 .post('/addTodo', (req, res) => {
-	/*
-	checkSessionTodo(req);
-	if (checkInputTodo(req.body.todo_input)){
-		//req.session.todoList.push(entities.encode(req.body.todo_input.trim().substring(0,80)));
-		gl_todoList.push(secureString(req.body.todo_input.trim().substring(0,80)));
-	}
-
-	res.status(200).redirect('/');
-	*/
-
 	if (checkInputTodo(req.body.todo_input)) {
 
 		gl_todoList.unshift({
@@ -149,12 +132,6 @@ app.get('/', (req, res) => {
 
 	let idToDel = parseInt(req.body.id);
 
-	/*
-	if (checkId(id, req.session.todoList)) {
-		req.session.todoList.splice(id, 1);
-	}
-	*/
-
 	if (checkId(idToDel)) {
 		gl_todoList = gl_todoList.filter(function (value, index, arr) {
 			return (value.id !== idToDel);
@@ -167,17 +144,6 @@ app.get('/', (req, res) => {
 /* /modTodo */
 /************/
 .post('/modTodo/', (req, res) => {
-	/*
-	checkSessionTodo(req);
-
-	let id = parseInt(req.body.todoId);
-	if (checkId(id, req.session.todoList)
-		&& (checkInputTodo(req.body.todoValue))) {
-			req.session.todoList[id] = entities.encode(req.body.todoValue.trim().substring(0, 80));
-	}
-
-	res.redirect('/');
-	*/
 
 	let idToMod = parseInt(req.body.todoId);
 	if (checkId(idToMod)
@@ -205,7 +171,23 @@ app.get('/', (req, res) => {
 /**************/
 .use((req, res) => {
 	res.status(301).redirect('/');
-})
+});
+
+
+/***************************/
+/**** SOCKET MANAGEMENT ****/
+/***************************/
+
+io.sockets.on('connection', function (socket) {
+	socket.emit('ssAreUConnected', { message: 'pouet'});
+
+	socket.on('csYesIAm', function (datas) {
+		console.log('He seems connected, I had this: ' + datas.message);
+	});
+});
+
+
+
 
 
 /*******************/

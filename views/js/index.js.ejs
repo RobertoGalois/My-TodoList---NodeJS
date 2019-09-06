@@ -1,3 +1,5 @@
+const socket = io();
+
 /*
 ** TempContentsContainer: a JQuery element to stock others JQuery elements
 ** by .append() them into it
@@ -171,7 +173,11 @@ function setEventsModButtons() {
 				$.post('/modTodo/', { todoValue: $('li#todo_' + id + ' input[type=text]').val(), todoId: id });
 				getTodoListFromServerNDo(reLoadTodoListInDOM);
 			})
-		});	
+
+		socket.on('ssAreUConnected', function (datas) {
+			console.log('I had this: ' + datas.message);
+			socket.emit('csYesIAm', { message: 'prout' });
+		}
 	});
 }
 
