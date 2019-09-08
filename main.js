@@ -100,7 +100,7 @@ app.get('/', (req, res) => {
 .post('/getTodoList', (req, res) => {
 	checkSession(req);
 	res.status(200).setHeader('Content-Type', 'application/json; charset=utf-8');
-	res.send(JSON.stringify({ todoList : gl_todoList }));	
+	res.send(JSON.stringify({ todoList : gl_todoList }));
 })
 /*************/
 /* /addTodo  */
@@ -126,8 +126,6 @@ app.get('/', (req, res) => {
 /* /delTodo */
 /************/
 .post('/delTodo/', (req, res) => {
-	
-	//checkSessionTodo(req);
 	res.status(200).setHeader('Content-Type', 'text/html; charset=utf-8');
 
 	let idToDel = parseInt(req.body.id);
@@ -197,6 +195,16 @@ io.sockets.on('connection', function (socket) {
 
 			gl_newTodoId++;
 			socket.emit('ssNewAddedTodo', { newTodo: gl_todoList[0]});
+		}
+	});
+
+	socket.on('csIWantToDelThisTodo', function (data) {
+		if (data !== null && checkId(parseInt(data.todoId))) {
+			gl_todoList = gl_todoList.filter(function (value, index, arr) {
+				return (value.id !== parseInt(data.todoId));
+			});
+
+			socket.emit('ssThisTodoHasBeenDeleted', { delTodoId: data.todoId });
 		}
 	});
 });
