@@ -89,9 +89,55 @@ function pipeKeyWithButton(inputEl, buttonEl, key) {
 	});	
 }
 
+function FormReplaceEl(pTodoEl) {
+
+	let thisFormReplaceEl = this;
+
+	this.modId = pTodoEl.todoInfos.id;
+	this.spanTodo = pTodoEl.jQEl.find('span#span_' + modId);
+
+	this.jQEl = $('<form></form>');
+	this.inputTodoEl = $('<input type="text" value="' + spanTodo.text() + '" placeholder="(80 caractères maximum)" maxlength="80" required />').appendTo(this.jQEl);
+	this.submitTodoBut = $('<input type="submit" value="OK" title="Valider" />').appendTo(this.jQEl);
+	this.cancelTodoBut = $('<button title="Annuler">NO</button>').appendTo(this.jQEl);
+
+	/*
+	** press escape do the same as click on NO button
+	*/
+	pipeKeyWithButton(inputTodoEl, cancelTodoBut, 27);
+	pipeKeyWithButton(inputTodoEl, submitTodoBut, 13);
+
+	/*
+	** when user click on NO button
+	*/
+	this.cancelTodoBut.click( function (e) {
+		e.preventDefault();
+		this.jQEl.remove();
+		pTodoEl.append(gl_tempContentsContainer.children());
+		selectAddEntryInput();
+		whoIsModifying(-1);
+	});
+
+	/*
+	** when user click on OK button
+	*/
+	this.submitTodoBut.click(function (e) {
+		e.preventDefault();
+		thisFormReplaceEl.jQEl.remove();
+		whoIsModifying(-1);	
+
+		if (thisFormReplaceEl.inputTodoEl.val() !== thisFormReplaceEl.spanTodo.text() && thisFormReplaceEl.inputTodoEl.val().trim() !== '') {
+			gl_socket.emit('csIWantToModThisTodo', { todoId: thisFormReplaceEl.modId, todoString: thisFormReplaceEl.inputTodoEl.val() });
+			
+		} else {
+			pTodoEl.append(gl_tempContentsContainer.children());
+		}
+	});
+}
+
 /*
 ** TodoEl is a wrapper object that contains
-** the todo and all html objects to show it in an <ul> element
+** the todo and all html objects to show in an <ul> element
 */
 function TodoEl(pTodo) {
 	let thisTodoEl = this;
@@ -121,6 +167,8 @@ function TodoEl(pTodo) {
 			modifiedTodo.jQEl.find('form').remove();
 			modifiedTodo.append(gl_tempContentsContainer.children());		
 		}
+
+		let formReplace = new FormReplaceEl(thisTodoEl);
 		
 		//need to do an object for that
 		let modId = thisTodoEl.todoInfos.id;
