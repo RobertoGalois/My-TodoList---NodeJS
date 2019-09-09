@@ -1,0 +1,2 @@
+# My-TodoList---NodeJS
+A better version of my previous nodeJS project NodeJS_todo_list. This time there's more features, using websockets instead of post protocol and more front object management. Each TodoList is session dependant, that's why if you connect on the server with another laptop or session, it will be another TodoList. If you want to use a TodoList that is using shared todoLists, check the incomming project "Shared TodoList"
