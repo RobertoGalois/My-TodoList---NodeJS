@@ -60,7 +60,7 @@ app.get('/', (req, res) => {
 	res.status(200).setHeader('Content-Type', 'text/html; charset=utf-8');
 
 	if (checkSession(req) === true) {
-		res.render('index.html.ejs', { ejs_userName: req.session.userName, todoList : req.session.todoList });
+		res.render('index.html.ejs', { ejs_userName: req.session.userName, todoList : getSessionTodoList(req) });
 	} else {
 		res.render('login.html.ejs');
 	}
@@ -94,27 +94,6 @@ app.get('/', (req, res) => {
 	req.session.destroy();
 	res.redirect('/');
 })
-/************/
-/* /modTodo */
-/************/
-.post('/modTodo/', (req, res) => {
-
-	let idToMod = parseInt(req.body.todoId);
-	if (checkId(idToMod)
-		&& (checkInputTodo(req.body.todoValue))) {
-			let currentTodo = gl_todoList.find(function (value, index, arr) {
-				return (value.id === idToMod)
-			}); 
-
-			if ((typeof (currentTodo)) !== 'undefined') {
-				currentTodo.todoString = secureString(req.body.todoValue);
-				currentTodo.lastUpdated = Date.now();
-				currentTodo.lastUpdater = req.session.userName;	
-			}
-	}
-
-	res.redirect('/');
-})
 /******************/
 /* /imgs/list.png */
 /******************/
@@ -129,14 +108,16 @@ app.get('/', (req, res) => {
 	res.status(301).redirect('/');
 });
 
-
 /***************************/
 /**** SOCKET MANAGEMENT ****/
 /***************************/
 
 io.sockets.on('connection', function (socket) {
+	/*
+	** Get session todoList
+	*/
 	socket.on('csSendMeTodoList', function (datas) {
-		socket.emit('ssHereIsTodoList', { todoList: socket.handshake.session.todoList });
+		socket.emit('ssHereIsTodoList', { todoList: getSessionTodoList(socket.handshake) });
 	});
 
 	/*
@@ -146,7 +127,7 @@ io.sockets.on('connection', function (socket) {
 		if (data !== null && checkInputTodo(data.todoInput)) {
 
 			let newTodo = {
-				id: gl_newTodoId,
+				id: gl_newTodoId++,
 				todoString: secureString(data.todoInput.trim().substring(0,80)),
 				createdBy: secureString(socket.handshake.session.userName),
 				creationDate: Date.now(),
@@ -154,9 +135,8 @@ io.sockets.on('connection', function (socket) {
 				lastUpdated: null
 			}
 
-			socket.handshake.session.todoList.unshift(newTodo);
-			gl_newTodoId++;
-			socket.emit('ssNewAddedTodo', { newTodo: newTodo});
+			getSessionTodoList(socket.handshake).unshift(newTodo);
+			socket.emit('ssNewAddedTodo', { newTodo: newTodo });
 		}
 	});
 
@@ -165,7 +145,7 @@ io.sockets.on('connection', function (socket) {
 	*/
 	socket.on('csIWantToDelThisTodo', function (data) {
 		if (data !== null && checkId(parseInt(data.todoId))) {
-			socket.handshake.session.todoList = socket.handshake.session.todoList.filter(function (value, index, arr) {
+			socket.handshake.session.todoList = getSessionTodoList(socket.handshake).filter(function (value, index, arr) {
 				return (value.id !== parseInt(data.todoId));
 			});
 
@@ -182,12 +162,12 @@ io.sockets.on('connection', function (socket) {
 			&& checkInputTodo(data.todoString)) {
 
 			let idToMod = parseInt(data.todoId);
-			let modTodo = socket.handshake.session.todoList.find(function (value, index, arr) {
+			let modTodo = getSessionTodoList(socket.handshake).find(function (value, index, arr) {
 				return (value.id === idToMod)
 			}); 
 
 			if (((typeof (modTodo)) !== 'undefined')
-				&& (data.todoString !== modTodo.todoString)) {
+				&& (data.todoString.trim() !== modTodo.todoString)) {
 				modTodo.todoString = secureString(data.todoString);
 				modTodo.lastUpdated = Date.now();
 				modTodo.lastUpdater = socket.handshake.session.userName;
@@ -216,11 +196,13 @@ function checkSession(req) {
 	return true;
 }
 
-function checkSessionTodo(req) {
+function getSessionTodoList(req) {
 	if ((typeof (req.session.todoList) === 'undefined')
 	|| (!(req.session.todoList instanceof Array))) {
 		req.session.todoList = [];
 	}
+
+	return req.session.todoList;
 }
 
 /*

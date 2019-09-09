@@ -1,11 +1,10 @@
-const gl_socket = io();
-var gl_todos = [];
-
 /*
 ** gl_tempContentsContainer: a JQuery element to stock others JQuery elements
 ** by .append() them into it
 */
 const gl_tempContentsContainer = $('<div>')
+const gl_socket = io();
+var   gl_todos = [];
 
 /*
 ** switch function to know if front is in a todo modification process
@@ -18,29 +17,12 @@ const whoIsModifying = (function (id)
 	let myStaticVar = -1;
 
 	return function (id) {
-	    //if there is a parameter passed in the function, we give it the new value, else, it keep its value
 		if(typeof (id) === typeof(myStaticVar)) {
 			myStaticVar = id;
 		}
 		
 		return (myStaticVar);
 	};
-})();
-
-/*
-** function with static variable to stock the todoList from back to front
-** and get it from front
-*/
-const getTodoList = (function (pTodoList) {
-	let staticTodoList = [];
-
-	return (function (pTodoList) {
-		if(typeof (pTodoList) === typeof(staticTodoList)) {
-			staticTodoList = pTodoList;
-		}
-
-		return staticTodoList;
-	});
 })();
 
 /*
@@ -62,16 +44,11 @@ function firstLoadTodoListInDOM(pTodoList) {
 
 	ulContainer.fadeIn(500);
 	selectAddEntryInput();
-
-	/*
-	** nothing is being modifiying
-	*/
 	whoIsModifying(-1);
 }
 
-
 /*
-** take an $('<input type="text">') element and if we press enter, it submits the form
+** when you press 'key' on inputEl, it clicks buttonEl
 */
 function pipeKeyWithButton(inputEl, buttonEl, key) {
 	inputEl.keydown(function (e) {
@@ -81,8 +58,31 @@ function pipeKeyWithButton(inputEl, buttonEl, key) {
 	});	
 }
 
-function FormReplaceEl(pTodoEl) {
+function formatDateTime(pValue) {
+	pValue = parseInt(pValue);
 
+	if (pValue < 10) {
+		return ('0' + pValue);
+	}
+
+	return (pValue);
+}
+
+function formatTimeStamp(pTimestamp) {
+	let date = new Date(pTimestamp);
+	let retStr = 'le ' + 	formatDateTime(date.getDate()) + '/' +
+							formatDateTime(date.getMonth() + 1) + '/' +
+							formatDateTime(date.getFullYear()) + ' à ' +
+							formatDateTime(date.getHours()) + 'h' +
+							formatDateTime(date.getMinutes());
+
+	return retStr;
+}
+
+/*
+** Wrapper object, it is a <form> element to place in <li> to modify the Todo
+*/
+function FormReplaceEl(pTodoEl) {
 	let thisFormReplaceEl = this;
 
 	this.modId = parseInt(pTodoEl.todoInfos.id);
@@ -103,6 +103,9 @@ function FormReplaceEl(pTodoEl) {
 		}
 	}
 
+	/*
+	** To append the form in the <li>
+	*/
 	this.append = function () {
 		pTodoEl.spanEl.appendTo(gl_tempContentsContainer);
 		pTodoEl.modButtonEl.appendTo(gl_tempContentsContainer);
@@ -112,15 +115,13 @@ function FormReplaceEl(pTodoEl) {
 		this.inputTodoEl.select();
 	}
 
+	/*
+	** To remove the forme from the <li>
+	*/
 	this.remove = function () {
 		this.jQEl.remove();
 	}
-	/*
-	** press escape do the same as click on NO button
-	*/
-	pipeKeyWithButton(this.inputTodoEl, this.cancelTodoBut, 27);
-	pipeKeyWithButton(this.inputTodoEl, this.submitTodoBut, 13);
-
+	
 	/*
 	** when user click on NO button
 	*/
@@ -140,7 +141,7 @@ function FormReplaceEl(pTodoEl) {
 		thisFormReplaceEl.jQEl.remove();
 		whoIsModifying(-1);
 
-		if (thisFormReplaceEl.inputTodoEl.val() !== thisFormReplaceEl.spanTodo.text() && thisFormReplaceEl.inputTodoEl.val().trim() !== '') {
+		if (thisFormReplaceEl.inputTodoEl.val().trim() !== thisFormReplaceEl.spanTodo.text() && thisFormReplaceEl.inputTodoEl.val().trim() !== '') {
 			gl_socket.emit('csIWantToModThisTodo', { todoId: thisFormReplaceEl.modId, todoString: thisFormReplaceEl.inputTodoEl.val() });
 			
 		} else {
@@ -149,6 +150,12 @@ function FormReplaceEl(pTodoEl) {
 
 		selectAddEntryInput();
 	});
+
+	/*
+	** press escape do the same as click on NO button, enter, as OK button
+	*/
+	pipeKeyWithButton(this.inputTodoEl, this.cancelTodoBut, 27);
+	pipeKeyWithButton(this.inputTodoEl, this.submitTodoBut, 13);
 }
 
 /*
@@ -166,8 +173,8 @@ function TodoEl(pTodo) {
 	this.spanEl = $('<span id="span_' + this.todoInfos.id + '">' + this.todoInfos.todoString + '</span>').appendTo(this.jQEl);
 	this.modButtonEl = $('<button class="mod_button" id="mod_' + this.todoInfos.id + '" title="Modifier">M</button>').appendTo(this.jQEl);
 	this.delButtonEl = $('<button class="del_button" id="del_' + this.todoInfos.id + '" title="Supprimer">X</button>').appendTo(this.jQEl);
+	
 
-	//del_todo button click() event
 	this.delButtonEl.click(function () {
 		gl_socket.emit('csIWantToDelThisTodo', { todoId: thisTodoEl.todoInfos.id });
 		selectAddEntryInput();
@@ -176,59 +183,14 @@ function TodoEl(pTodo) {
 	this.modButtonEl.click(function () {
 		let formReplace = new FormReplaceEl(thisTodoEl);
 
-
 		formReplace.checkIfOtherIsInModif();
 		whoIsModifying(thisTodoEl.todoInfos.id);
 		formReplace.append();
-
-		//need to do an object for that
-		//let modId = thisTodoEl.todoInfos.id;
-		//let spanTodo = thisTodoEl.jQEl.find('span#span_' + modId);
-		//let formReplace = $('<form></form>');
-		//let inputTodoEl = $('<input type="text" value="' + spanTodo.text() + '" placeholder="(80 caractères maximum)" maxlength="80" required />').appendTo(formReplace);
-		//let submitTodoBut = $('<input type="submit" value="OK" title="Valider" />').appendTo(formReplace);
-		//let cancelTodoBut = $('<button title="Annuler">NO</button>').appendTo(formReplace);
-		
-		
-
-		/*
-		** when user click on NO button
-		*/
-/*		cancelTodoBut.click( function (e) {
-			e.preventDefault();
-			formReplace.remove();
-			thisTodoEl.append(gl_tempContentsContainer.children());
-			selectAddEntryInput();
-			whoIsModifying(-1);
-		});
-*/
-		/*
-		** when user click on OK button
-		*/
-/*		submitTodoBut.click(function (e) {
-			e.preventDefault();
-			formReplace.remove();
-			whoIsModifying(-1);	
-
-			if (inputTodoEl.val() !== spanTodo.text() && inputTodoEl.val().trim() !== '') {
-				gl_socket.emit('csIWantToModThisTodo', {todoId: modId, todoString: inputTodoEl.val() });
-				
-			} else {
-				thisTodoEl.append(gl_tempContentsContainer.children());
-			}
-		});
-*/
-		/*
-		** press escape do the same as click on NO button
-		*/
-	//	pipeKeyWithButton(inputTodoEl, cancelTodoBut, 27);
 	});
 
-//================================================
-
 	//click on the span do the same as click on mod button
-	this.jQEl.find('span').click(function (e) {
-		thisTodoEl.jQEl.find('button.mod_button').click();
+	this.spanEl.click(function (e) {
+		thisTodoEl.modButtonEl.click();
 	});
 
 	this.fadeIn = function (pTime) { this.jQEl.fadeIn(pTime) }
@@ -241,6 +203,15 @@ function TodoEl(pTodo) {
 	this.prepend = function (pEl) { this.jQEl.prepend(pEl) }
 	this.prependTo = function (pEl) { this.jQEl.prependTo(pEl) }
 	this.remove = function () { this.jQEl.remove() }
+
+	this.getTooltipStr = function () {
+		return 'Créée par: [' + this.todoInfos.createdBy +'] ' + formatTimeStamp(this.todoInfos.creationDate) +
+	 			((this.todoInfos.lastUpdater === null && this.todoInfos.lastUpdated === null) ? '' : '\nModifiée par: [' + this.todoInfos.lastUpdater +'] ' + formatTimeStamp(this.todoInfos.lastUpdated));
+	}
+
+	this.updateTooltip = function () {
+		this.jQEl.attr('title', this.getTooltipStr());
+	}
 
 	this.appendInList = function () {
 		this.appendTo($('ul#todo_list'));
@@ -273,13 +244,15 @@ function TodoEl(pTodo) {
 
 	this.setLastUpdater = function (pValue) {
 		this.todoInfos.lastUpdater = pValue;
-		//this.spanEl.html(pValue);
+		this.updateTooltip();
 	}
 
 	this.setLastUpdated = function (pValue) {
 		this.todoInfos.lastUpdated = pValue;
-		//this.spanEl.html(pValue);
+		this.updateTooltip();
 	}
+
+	this.jQEl.attr('title', this.getTooltipStr());
 }
 
 /****************/
@@ -310,9 +283,9 @@ $(function () {
 		selectAddEntryInput();
 	});
 
-	/*********************
+	/************************
 	** gl_socket MANAGEMENT *
-	**********************/
+	*************************/
 	gl_socket.on('ssHereIsTodoList', function (data) {
 		firstLoadTodoListInDOM(data.todoList);
 	});
@@ -341,8 +314,9 @@ $(function () {
 		});
 
 		modTodoEl.setTodoString(data.modTodoString);
-		//modTodoEl.todoInfos.lastUpdated = data.modTodoLastUpdated;
-		//modTodoEl.todoInfos.lastUpdater = data.modTodoLastUpdater;
+		modTodoEl.setLastUpdater(data.modTodoLastUpdater);
+		modTodoEl.setLastUpdated(data.modTodoLastUpdated);
+		modTodoEl.updateTooltip();
 
 		modTodoEl.jQEl.hide(500, function () {
 			modTodoEl.append(gl_tempContentsContainer.children());

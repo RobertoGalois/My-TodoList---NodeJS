@@ -28,12 +28,3 @@ gl_todoList = [
 		lastUpdater: 'Vico'
 	},
 ];
-
-
-==> en cours, je dois encore modifier le index.js.ejs pour qu'il gere la todo_list non pas comme un array qui contient des strings mais comme un array qui contient des objets todo
-
-
-pour le moment il faut
-- faire en sorte de gerer les changements en modifiant le DOM et pas en rechargant la liste, la liste n'est chargée qu'une fois a la connexion
-- gerer les problemes de CSS
-- rendre le code plus propre
