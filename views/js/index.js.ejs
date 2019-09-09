@@ -69,14 +69,6 @@ function firstLoadTodoListInDOM(pTodoList) {
 	whoIsModifying(-1);
 }
 
-function clearTodoListInDOM() {
-	$('ul#todo_list').empty();
-}
-
-function reLoadTodoListInDOM(pTodoList) {
-	clearTodoListInDOM();
-	firstLoadTodoListInDOM(pTodoList);
-}
 
 /*
 ** take an $('<input type="text">') element and if we press enter, it submits the form
@@ -93,26 +85,48 @@ function FormReplaceEl(pTodoEl) {
 
 	let thisFormReplaceEl = this;
 
-	this.modId = pTodoEl.todoInfos.id;
-	this.spanTodo = pTodoEl.jQEl.find('span#span_' + modId);
+	this.modId = parseInt(pTodoEl.todoInfos.id);
+	this.spanTodo = pTodoEl.jQEl.find('span#span_' + this.modId);
 
 	this.jQEl = $('<form></form>');
-	this.inputTodoEl = $('<input type="text" value="' + spanTodo.text() + '" placeholder="(80 caractères maximum)" maxlength="80" required />').appendTo(this.jQEl);
+	this.inputTodoEl = $('<input type="text" value="' + this.spanTodo.text() + '" placeholder="(80 caractères maximum)" maxlength="80" required />').appendTo(this.jQEl);
 	this.submitTodoBut = $('<input type="submit" value="OK" title="Valider" />').appendTo(this.jQEl);
 	this.cancelTodoBut = $('<button title="Annuler">NO</button>').appendTo(this.jQEl);
 
+	this.checkIfOtherIsInModif = function () {
+		if (whoIsModifying() !== -1) {
+			//unset field who is in modification
+			let modifiedTodo = gl_todos.find((val, indx, arr) => (val.todoInfos.id === whoIsModifying()));
+			
+			modifiedTodo.jQEl.find('form').remove();
+			modifiedTodo.append(gl_tempContentsContainer.children());		
+		}
+	}
+
+	this.append = function () {
+		pTodoEl.spanEl.appendTo(gl_tempContentsContainer);
+		pTodoEl.modButtonEl.appendTo(gl_tempContentsContainer);
+		pTodoEl.delButtonEl.appendTo(gl_tempContentsContainer);
+
+		this.jQEl.appendTo(pTodoEl.jQEl);
+		this.inputTodoEl.select();
+	}
+
+	this.remove = function () {
+		this.jQEl.remove();
+	}
 	/*
 	** press escape do the same as click on NO button
 	*/
-	pipeKeyWithButton(inputTodoEl, cancelTodoBut, 27);
-	pipeKeyWithButton(inputTodoEl, submitTodoBut, 13);
+	pipeKeyWithButton(this.inputTodoEl, this.cancelTodoBut, 27);
+	pipeKeyWithButton(this.inputTodoEl, this.submitTodoBut, 13);
 
 	/*
 	** when user click on NO button
 	*/
 	this.cancelTodoBut.click( function (e) {
 		e.preventDefault();
-		this.jQEl.remove();
+		thisFormReplaceEl.jQEl.remove();
 		pTodoEl.append(gl_tempContentsContainer.children());
 		selectAddEntryInput();
 		whoIsModifying(-1);
@@ -124,7 +138,7 @@ function FormReplaceEl(pTodoEl) {
 	this.submitTodoBut.click(function (e) {
 		e.preventDefault();
 		thisFormReplaceEl.jQEl.remove();
-		whoIsModifying(-1);	
+		whoIsModifying(-1);
 
 		if (thisFormReplaceEl.inputTodoEl.val() !== thisFormReplaceEl.spanTodo.text() && thisFormReplaceEl.inputTodoEl.val().trim() !== '') {
 			gl_socket.emit('csIWantToModThisTodo', { todoId: thisFormReplaceEl.modId, todoString: thisFormReplaceEl.inputTodoEl.val() });
@@ -132,6 +146,8 @@ function FormReplaceEl(pTodoEl) {
 		} else {
 			pTodoEl.append(gl_tempContentsContainer.children());
 		}
+
+		selectAddEntryInput();
 	});
 }
 
@@ -158,47 +174,38 @@ function TodoEl(pTodo) {
 	});
 
 	this.modButtonEl.click(function () {
-
-		//if another todo is in modification mode
-		if (whoIsModifying() !== -1) {
-			//unset field who is in modifying
-			let modifiedTodo = gl_todos.find((val, indx, arr) => (val.todoInfos.id === whoIsModifying()));
-			
-			modifiedTodo.jQEl.find('form').remove();
-			modifiedTodo.append(gl_tempContentsContainer.children());		
-		}
-
 		let formReplace = new FormReplaceEl(thisTodoEl);
-		
-		//need to do an object for that
-		let modId = thisTodoEl.todoInfos.id;
-		let spanTodo = thisTodoEl.jQEl.find('span#span_' + modId);
-		let formReplace = $('<form></form>');
-		let inputTodoEl = $('<input type="text" value="' + spanTodo.text() + '" placeholder="(80 caractères maximum)" maxlength="80" required />').appendTo(formReplace);
-		let submitTodoBut = $('<input type="submit" value="OK" title="Valider" />').appendTo(formReplace);
-		let cancelTodoBut = $('<button title="Annuler">NO</button>').appendTo(formReplace);
 
-		whoIsModifying(modId);
-		thisTodoEl.jQEl.find('span, button').appendTo(gl_tempContentsContainer);
-		thisTodoEl.append(formReplace);
-		inputTodoEl.select();
-		pipeKeyWithButton(inputTodoEl, submitTodoBut, 13);
+
+		formReplace.checkIfOtherIsInModif();
+		whoIsModifying(thisTodoEl.todoInfos.id);
+		formReplace.append();
+
+		//need to do an object for that
+		//let modId = thisTodoEl.todoInfos.id;
+		//let spanTodo = thisTodoEl.jQEl.find('span#span_' + modId);
+		//let formReplace = $('<form></form>');
+		//let inputTodoEl = $('<input type="text" value="' + spanTodo.text() + '" placeholder="(80 caractères maximum)" maxlength="80" required />').appendTo(formReplace);
+		//let submitTodoBut = $('<input type="submit" value="OK" title="Valider" />').appendTo(formReplace);
+		//let cancelTodoBut = $('<button title="Annuler">NO</button>').appendTo(formReplace);
+		
+		
 
 		/*
 		** when user click on NO button
 		*/
-		cancelTodoBut.click( function (e) {
+/*		cancelTodoBut.click( function (e) {
 			e.preventDefault();
 			formReplace.remove();
 			thisTodoEl.append(gl_tempContentsContainer.children());
 			selectAddEntryInput();
 			whoIsModifying(-1);
 		});
-
+*/
 		/*
 		** when user click on OK button
 		*/
-		submitTodoBut.click(function (e) {
+/*		submitTodoBut.click(function (e) {
 			e.preventDefault();
 			formReplace.remove();
 			whoIsModifying(-1);	
@@ -210,11 +217,11 @@ function TodoEl(pTodo) {
 				thisTodoEl.append(gl_tempContentsContainer.children());
 			}
 		});
-
+*/
 		/*
 		** press escape do the same as click on NO button
 		*/
-		pipeKeyWithButton(inputTodoEl, cancelTodoBut, 27);
+	//	pipeKeyWithButton(inputTodoEl, cancelTodoBut, 27);
 	});
 
 //================================================
@@ -295,7 +302,10 @@ $(function () {
 	*/
 	$('form').on('submit', function (e) {
 		e.preventDefault();
-		gl_socket.emit('csIWantToAddThisTodo', { todoInput: $('input#add_entry_input').val() });
+		if (($('input#add_entry_input').val().trim()) !== '') {
+			gl_socket.emit('csIWantToAddThisTodo', { todoInput: $('input#add_entry_input').val() });	
+		}
+		
 		$('input#add_entry_input').val('');
 		selectAddEntryInput();
 	});
