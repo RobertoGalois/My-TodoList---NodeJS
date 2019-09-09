@@ -1,11 +1,11 @@
-const socket = io();
+const gl_socket = io();
 var gl_todos = [];
 
 /*
-** TempContentsContainer: a JQuery element to stock others JQuery elements
+** gl_tempContentsContainer: a JQuery element to stock others JQuery elements
 ** by .append() them into it
 */
-const tempContentsContainer = $('<div>')
+const gl_tempContentsContainer = $('<div>')
 
 /*
 ** switch function to know if front is in a todo modification process
@@ -50,37 +50,17 @@ function selectAddEntryInput() {
 	$('#add_entry_input').select();
 }
 
-/*
-** get the todoList form the server by post protocol, 
-** save it in the getTodolist() function and
-** call pFunction while passing the todoList in argument
-*/
-function getTodoListFromServerNDo(pFunction) {
-	$.post('/getTodoList', function (data) {
-		getTodoList(data.todoList);
-		pFunction(data.todoList);
-	})
-}
-
-/*
-** take a $('<li>') JQuery Element and append() it a formatted todo
-*/
-function loadTodoInLi(pLiEl, pTodo) {
-	pLiEl.append($('<img src="/imgs/list.png" /><span id="span_' + pTodo.id + '">' + pTodo.todoString + '</span><button class="mod_button" id="mod_' + pTodo.id + '" title="Modifier">M</button><button class="del_button" id="del_' + pTodo.id + '" title="Supprimer">X</button>'));
-}
-
 function firstLoadTodoListInDOM(pTodoList) {
 	let ulContainer = $('ul#todo_list');
-		ulContainer.hide(0);
+		ulContainer.fadeOut(0);
 	
 	for (let i = 0, tempTodo = null; i < pTodoList.length; i++) {
 		tempTodo = new TodoEl(pTodoList[i]);
-		tempTodo.prependInList();
+		tempTodo.appendInList();
 		gl_todos.unshift(tempTodo);
 	}
 
-	ulContainer.show(500);
-
+	ulContainer.fadeIn(500);
 	selectAddEntryInput();
 
 	/*
@@ -98,104 +78,16 @@ function reLoadTodoListInDOM(pTodoList) {
 	firstLoadTodoListInDOM(pTodoList);
 }
 
-function setEventsDelButtons() {
-	$('button.del_button').each(function () {
-		setEventsDelButton(this);	
-	});
-}
-
-function setEventsDelButton(pButton) {
-	pButton.addEventListener('click', function () {
-		socket.emit('csIWantToDelThisTodo', { todoId: pButton.id.slice(4) });
-		selectAddEntryInput();
-	});
-}
-
 /*
 ** take an $('<input type="text">') element and if we press enter, it submits the form
 */
-function setEnterMeanSend(inputEl, sendEl) {
+function pipeKeyWithButton(inputEl, buttonEl, key) {
 	inputEl.keydown(function (e) {
-		if(e.which === 13) {
-			sendEl.click();
+		if(e.which === key) {
+			buttonEl.click();
 		}
 	});	
 }
-
-function setEventsModButton(pButton) { 
-	pButton.addEventListener('click', function (e) {
-		if (whoIsModifying() !== -1) {
-			//unset field who is in modifying
-			$('li#todo_' + whoIsModifying() + ' form').remove();
-			$('li#todo_' + whoIsModifying()).append(tempContentsContainer.find('span'));
-			$('li#todo_' + whoIsModifying()).append(tempContentsContainer.find('button[class=mod_button]'));
-			$('li#todo_' + whoIsModifying()).append(tempContentsContainer.find('button[class=del_button]'));
-		}
-
-		let id = parseInt(pButton.id.slice(4));
-		let spanTodo = 	$('li#todo_' + id + ' span[id=span_' + id + ']');
-		let formReplace = $('<form method="post" action="/"><input type="text" name="todoValue" value="' + spanTodo.text() + '" placeholder="(80 caractères maximum)" maxlength="80" required /><input type="submit" value="OK" title="Valider" /><button title="Annuler">NO</button></form>');
-
-		whoIsModifying(id);
-		tempContentsContainer.append($('li#todo_' + id + ' span'));
-		tempContentsContainer.append($('li#todo_' + id + ' button.mod_button'));
-		tempContentsContainer.append($('li#todo_' + id + ' button.del_button'));
-
-		$('li#todo_' + id).append(formReplace);
-		$('li#todo_' + id + ' input[type=text]').select();
-		setEnterMeanSend($('li#todo_' + id + ' input[type=text]'), $('li#todo_' + id + ' input[type=submit]'));
-
-		/*
-		** when user click on NO button
-		*/
-		$('li#todo_' + id + ' button').click(function (e) {
-			e.preventDefault();
-			getTodoListFromServerNDo(reLoadTodoListInDOM);
-			tempContentsContainer.empty();
-		});
-
-		/*
-		** press escape do the same as click on NO button
-		*/
-		$('li#todo_' + id + ' input[type=text]').keydown(function (e) {
-			if(e.which === 27) {
-				$('li#todo_' + id + ' button').click();
-			}
-		});
-
-		$('li#todo_' + id + ' input[type=text]').select();
-
-		/*
-		** when user validates entry
-		*/
-		$('li#todo_' + id + ' form').on('submit', function (e) {
-			e.preventDefault();
-			$.post('/modTodo/', { todoValue: $('li#todo_' + id + ' input[type=text]').val(), todoId: id });
-			getTodoListFromServerNDo(reLoadTodoListInDOM);
-		})
-	});
-}
-
-/*
-** what to do when we click on a "Modifier" button
-*/
-function setEventsModButtons() { 
-	$('button.mod_button').each(function () {
-		setEventsModButton(this);
-	});
-}
-
-function setEventsButtons() {
-	setEventsDelButtons();
-	setEventsModButtons();
-}
-
-function createNewLiTodo(pId) {
-	return ($('<li class="todo" id="todo_' + pId + '"></li>'));
-}
-
-
-
 
 /*
 ** TodoEl is a wrapper object that contains
@@ -207,68 +99,74 @@ function TodoEl(pTodo) {
 	this.todoInfos = pTodo;
 
 	this.jQEl = $('<li class="todo" id="todo_' + this.todoInfos.id + '"></li>');
-	this.jQEl.append($('<img src="/imgs/list.png" /><span id="span_' + this.todoInfos.id + '">' + this.todoInfos.todoString + '</span><button class="mod_button" id="mod_' + this.todoInfos.id + '" title="Modifier">M</button><button class="del_button" id="del_' + this.todoInfos.id + '" title="Supprimer">X</button>'));
+	this.jQEl.append($('<img src="/imgs/list.png" />'));
+
+	this.spanEl = $('<span id="span_' + this.todoInfos.id + '">' + this.todoInfos.todoString + '</span>').appendTo(this.jQEl);
+	this.modButtonEl = $('<button class="mod_button" id="mod_' + this.todoInfos.id + '" title="Modifier">M</button>').appendTo(this.jQEl);
+	this.delButtonEl = $('<button class="del_button" id="del_' + this.todoInfos.id + '" title="Supprimer">X</button>').appendTo(this.jQEl);
 
 	//del_todo button click() event
-	this.jQEl.find('button.del_button').click(function () {
-		socket.emit('csIWantToDelThisTodo', { todoId: thisTodoEl.todoInfos.id });
+	this.delButtonEl.click(function () {
+		gl_socket.emit('csIWantToDelThisTodo', { todoId: thisTodoEl.todoInfos.id });
 		selectAddEntryInput();
 	});
 
-//================================================
-	//mod_todo button click() event
-	this.jQEl.find('button.mod_button').click(function () {
-		console.log('ca modifie !');
+	this.modButtonEl.click(function () {
 
+		//if another todo is in modification mode
 		if (whoIsModifying() !== -1) {
 			//unset field who is in modifying
-			$('li#todo_' + whoIsModifying() + ' form').remove();
-			$('li#todo_' + whoIsModifying()).append(tempContentsContainer.find('span'));
-			$('li#todo_' + whoIsModifying()).append(tempContentsContainer.find('button[class=mod_button]'));
-			$('li#todo_' + whoIsModifying()).append(tempContentsContainer.find('button[class=del_button]'));
+			let modifiedTodo = gl_todos.find((val, indx, arr) => (val.todoInfos.id === whoIsModifying()));
+			
+			modifiedTodo.jQEl.find('form').remove();
+			modifiedTodo.append(gl_tempContentsContainer.children());		
 		}
 		
-		let id = thisTodoEl.todoInfos.id;
-		let spanTodo = thisTodoEl.jQEl.find('span#span_' + id);
-		let formReplace = $('<form method="post" action="/"><input type="text" name="todoValue" value="' + spanTodo.text() + '" placeholder="(80 caractères maximum)" maxlength="80" required /><input type="submit" value="OK" title="Valider" /><button title="Annuler">NO</button></form>');
+		//need to do an object for that
+		let modId = thisTodoEl.todoInfos.id;
+		let spanTodo = thisTodoEl.jQEl.find('span#span_' + modId);
+		let formReplace = $('<form></form>');
+		let inputTodoEl = $('<input type="text" value="' + spanTodo.text() + '" placeholder="(80 caractères maximum)" maxlength="80" required />').appendTo(formReplace);
+		let submitTodoBut = $('<input type="submit" value="OK" title="Valider" />').appendTo(formReplace);
+		let cancelTodoBut = $('<button title="Annuler">NO</button>').appendTo(formReplace);
 
-		whoIsModifying(id);
-		tempContentsContainer.append($('li#todo_' + id + ' span'));
-		tempContentsContainer.append($('li#todo_' + id + ' button.mod_button'));
-		tempContentsContainer.append($('li#todo_' + id + ' button.del_button'));
-
-		$('li#todo_' + id).append(formReplace);
-		$('li#todo_' + id + ' input[type=text]').select();
-		setEnterMeanSend($('li#todo_' + id + ' input[type=text]'), $('li#todo_' + id + ' input[type=submit]'));
+		whoIsModifying(modId);
+		thisTodoEl.jQEl.find('span, button').appendTo(gl_tempContentsContainer);
+		thisTodoEl.append(formReplace);
+		inputTodoEl.select();
+		pipeKeyWithButton(inputTodoEl, submitTodoBut, 13);
 
 		/*
 		** when user click on NO button
 		*/
-		$('li#todo_' + id + ' button').click(function (e) {
+		cancelTodoBut.click( function (e) {
 			e.preventDefault();
-			getTodoListFromServerNDo(reLoadTodoListInDOM);
-			tempContentsContainer.empty();
+			formReplace.remove();
+			thisTodoEl.append(gl_tempContentsContainer.children());
+			selectAddEntryInput();
+			whoIsModifying(-1);
+		});
+
+		/*
+		** when user click on OK button
+		*/
+		submitTodoBut.click(function (e) {
+			e.preventDefault();
+			formReplace.remove();
+			whoIsModifying(-1);	
+
+			if (inputTodoEl.val() !== spanTodo.text() && inputTodoEl.val().trim() !== '') {
+				gl_socket.emit('csIWantToModThisTodo', {todoId: modId, todoString: inputTodoEl.val() });
+				
+			} else {
+				thisTodoEl.append(gl_tempContentsContainer.children());
+			}
 		});
 
 		/*
 		** press escape do the same as click on NO button
 		*/
-		$('li#todo_' + id + ' input[type=text]').keydown(function (e) {
-			if(e.which === 27) {
-				$('li#todo_' + id + ' button').click();
-			}
-		});
-
-		$('li#todo_' + id + ' input[type=text]').select();
-
-		/*
-		** when user validates entry
-		*/
-		$('li#todo_' + id + ' form').on('submit', function (e) {
-			e.preventDefault();
-			$.post('/modTodo/', { todoValue: $('li#todo_' + id + ' input[type=text]').val(), todoId: id });
-			getTodoListFromServerNDo(reLoadTodoListInDOM);
-		})
+		pipeKeyWithButton(inputTodoEl, cancelTodoBut, 27);
 	});
 
 //================================================
@@ -283,9 +181,15 @@ function TodoEl(pTodo) {
 	this.show = function (pTime) { this.jQEl.show(pTime) }
 	this.hide = function (pTime) { this.jQEl.hide(pTime) }
 	this.slideToggle = function (pTime) { this.jQEl.slideToggle(pTime) }
+	this.append = function (pEl) { this.jQEl.append(pEl) }
 	this.appendTo = function (pEl) { this.jQEl.appendTo(pEl) }
+	this.prepend = function (pEl) { this.jQEl.prepend(pEl) }
 	this.prependTo = function (pEl) { this.jQEl.prependTo(pEl) }
 	this.remove = function () { this.jQEl.remove() }
+
+	this.appendInList = function () {
+		this.appendTo($('ul#todo_list'));
+	}
 
 	this.prependInList = function () {
 		this.prependTo($('ul#todo_list'));
@@ -306,6 +210,21 @@ function TodoEl(pTodo) {
 			thisTodoEl.remove();
 		});
 	}
+
+	this.setTodoString = function (pValue) {
+		this.todoInfos.todoString = pValue;
+		this.spanEl.html(pValue);
+	}
+
+	this.setLastUpdater = function (pValue) {
+		this.todoInfos.lastUpdater = pValue;
+		//this.spanEl.html(pValue);
+	}
+
+	this.setLastUpdated = function (pValue) {
+		this.todoInfos.lastUpdated = pValue;
+		//this.spanEl.html(pValue);
+	}
 }
 
 /****************/
@@ -313,7 +232,7 @@ function TodoEl(pTodo) {
 /****************/
 $(function () {
 
-	socket.emit('csSendMeTodoList');
+	gl_socket.emit('csSendMeTodoList');
 	selectAddEntryInput();
 
 	/*
@@ -328,33 +247,48 @@ $(function () {
 	*/
 	$('form').on('submit', function (e) {
 		e.preventDefault();
-		socket.emit('csIWantToAddThisTodo', { todoInput: $('input#add_entry_input').val() });
+		gl_socket.emit('csIWantToAddThisTodo', { todoInput: $('input#add_entry_input').val() });
 		$('input#add_entry_input').val('');
 		selectAddEntryInput();
 	});
 
 	/*********************
-	** SOCKET MANAGEMENT *
+	** gl_socket MANAGEMENT *
 	**********************/
-	socket.on('ssNewAddedTodo', function (data) {
+	gl_socket.on('ssHereIsTodoList', function (data) {
+		firstLoadTodoListInDOM(data.todoList);
+	});
+
+	gl_socket.on('ssNewAddedTodo', function (data) {
 		let newTodoEl = new TodoEl(data.newTodo);
 			newTodoEl.prependInListAnim();
 
 		gl_todos.unshift(newTodoEl);
 	});
 
-	socket.on('ssHereIsTodoList', function (data) {
-		firstLoadTodoListInDOM(data.todoList);
-	});
-
-	socket.on('ssThisTodoHasBeenDeleted', function (data) {
-		delTodoEl = gl_todos.filter(function (value, index, arr) {
+	gl_socket.on('ssThisTodoHasBeenDeleted', function (data) {
+		delTodoEl = gl_todos.find(function (value, index, arr) {
 			return (value.todoInfos.id === data.delTodoId);
-		})[0];
+		});
 
 		delTodoEl.removeFromListAnim();
 		gl_todos = gl_todos.filter(function (value, index, arr) {
 			return (value.todoInfos.id !== data.delTodoId);
 		});
+	});
+
+	gl_socket.on('ssThisTodoHasBeenModified', function (data) {
+		modTodoEl = gl_todos.find(function (value, index, arr) {
+			return (value.todoInfos.id === data.modTodoId);
+		});
+
+		modTodoEl.setTodoString(data.modTodoString);
+		//modTodoEl.todoInfos.lastUpdated = data.modTodoLastUpdated;
+		//modTodoEl.todoInfos.lastUpdater = data.modTodoLastUpdater;
+
+		modTodoEl.jQEl.hide(500, function () {
+			modTodoEl.append(gl_tempContentsContainer.children());
+			modTodoEl.slideToggle(500);
+		});	
 	});
 });

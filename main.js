@@ -11,7 +11,6 @@ const app = express();
 const server = app.listen(8080);
 const io = socketIO.listen(server);
 
-var gl_todoList = [];
 var gl_newUserId = 0;
 var gl_newTodoId = 0;
 
@@ -81,6 +80,7 @@ app.get('/', (req, res) => {
 		&& (checkPseudo(req.body.pseudo) === true)) {
 			req.session.userName = req.body.pseudo.trim();
 			req.session.userId = gl_newUserId;
+			req.session.todoList = [];
 			gl_newUserId++;
 	}
 
@@ -92,50 +92,6 @@ app.get('/', (req, res) => {
 .get('/disconnect', (req, res) => {
 	res.status(200).setHeader('Content-Type', 'text/html');
 	req.session.destroy();
-	res.redirect('/');
-})
-/*****************/
-/* /getTodoList  */
-/*****************/
-.post('/getTodoList', (req, res) => {
-	checkSession(req);
-	res.status(200).setHeader('Content-Type', 'application/json; charset=utf-8');
-	res.send(JSON.stringify({ todoList : gl_todoList }));
-})
-/*************/
-/* /addTodo  */
-/*************/
-.post('/addTodo', (req, res) => {
-	if (checkInputTodo(req.body.todo_input)) {
-
-		gl_todoList.unshift({
-			id: gl_newTodoId,
-			todoString: secureString(req.body.todo_input.trim().substring(0,80)),
-			createdBy: secureString(req.session.userName),
-			creationDate: Date.now(),
-			lastUpdater: null,
-			lastUpdated: null,
-		});
-
-		gl_newTodoId++;
-	}
-
-	res.status(200).redirect('/');
-})
-/************/
-/* /delTodo */
-/************/
-.post('/delTodo/', (req, res) => {
-	res.status(200).setHeader('Content-Type', 'text/html; charset=utf-8');
-
-	let idToDel = parseInt(req.body.id);
-
-	if (checkId(idToDel)) {
-		gl_todoList = gl_todoList.filter(function (value, index, arr) {
-			return (value.id !== idToDel);
-		});
-	}
-
 	res.redirect('/');
 })
 /************/
@@ -150,9 +106,11 @@ app.get('/', (req, res) => {
 				return (value.id === idToMod)
 			}); 
 
-			currentTodo.todoString = secureString(req.body.todoValue);
-			currentTodo.lastUpdated = Date.now();
-			currentTodo.lastUpdater = req.session.userName;
+			if ((typeof (currentTodo)) !== 'undefined') {
+				currentTodo.todoString = secureString(req.body.todoValue);
+				currentTodo.lastUpdated = Date.now();
+				currentTodo.lastUpdater = req.session.userName;	
+			}
 	}
 
 	res.redirect('/');
@@ -178,40 +136,72 @@ app.get('/', (req, res) => {
 
 io.sockets.on('connection', function (socket) {
 	socket.on('csSendMeTodoList', function (datas) {
-		socket.emit('ssHereIsTodoList', { todoList: gl_todoList });
+		socket.emit('ssHereIsTodoList', { todoList: socket.handshake.session.todoList });
 	});
 
+	/*
+	** Add Todo
+	*/
 	socket.on('csIWantToAddThisTodo', function (data) {
 		if (data !== null && checkInputTodo(data.todoInput)) {
 
-			gl_todoList.unshift({
+			let newTodo = {
 				id: gl_newTodoId,
 				todoString: secureString(data.todoInput.trim().substring(0,80)),
 				createdBy: secureString(socket.handshake.session.userName),
 				creationDate: Date.now(),
 				lastUpdater: null,
-				lastUpdated: null,
-			});
+				lastUpdated: null
+			}
 
+			socket.handshake.session.todoList.unshift(newTodo);
 			gl_newTodoId++;
-			socket.emit('ssNewAddedTodo', { newTodo: gl_todoList[0]});
+			socket.emit('ssNewAddedTodo', { newTodo: newTodo});
 		}
 	});
 
+	/*
+	** Del Todo
+	*/
 	socket.on('csIWantToDelThisTodo', function (data) {
 		if (data !== null && checkId(parseInt(data.todoId))) {
-			gl_todoList = gl_todoList.filter(function (value, index, arr) {
+			socket.handshake.session.todoList = socket.handshake.session.todoList.filter(function (value, index, arr) {
 				return (value.id !== parseInt(data.todoId));
 			});
 
 			socket.emit('ssThisTodoHasBeenDeleted', { delTodoId: data.todoId });
 		}
 	});
+
+	/*
+	** Mod Todo
+	*/
+	socket.on('csIWantToModThisTodo', function (data) {
+		if (data !== null
+			&& checkId(parseInt(data.todoId))
+			&& checkInputTodo(data.todoString)) {
+
+			let idToMod = parseInt(data.todoId);
+			let modTodo = socket.handshake.session.todoList.find(function (value, index, arr) {
+				return (value.id === idToMod)
+			}); 
+
+			if (((typeof (modTodo)) !== 'undefined')
+				&& (data.todoString !== modTodo.todoString)) {
+				modTodo.todoString = secureString(data.todoString);
+				modTodo.lastUpdated = Date.now();
+				modTodo.lastUpdater = socket.handshake.session.userName;
+			}
+
+			socket.emit('ssThisTodoHasBeenModified', {
+					modTodoId: modTodo.id,
+					modTodoString: modTodo.todoString,
+					modTodoLastUpdated: modTodo.lastUpdated,
+					modTodoLastUpdater: modTodo.lastUpdater
+			});
+		}
+	});
 });
-
-
-
-
 
 /*******************/
 /**** FUNCTIONS ****/
